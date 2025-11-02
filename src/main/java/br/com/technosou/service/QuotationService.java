@@ -8,12 +8,12 @@ import br.com.technosou.message.KafkaEvents;
 import br.com.technosou.repository.QuotationRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @ApplicationScoped
 public class QuotationService {
@@ -30,7 +30,6 @@ public class QuotationService {
 
     public void getCurrancyPrice() {
         CurrencyPriceDTO currencyPriceInfo = currencyPriceClient.getPriceByPair("USD-BRL");
-        System.out.println(currencyPriceInfo.toString());
         if(updateCurrantInfPrice(currencyPriceInfo)){
             kafkaEvents.sendNewKafkaEvent(QuotationDTO
                     .builder()
@@ -41,7 +40,8 @@ public class QuotationService {
 
     }
 
-    private boolean updateCurrantInfPrice(CurrencyPriceDTO currencyInfo) {
+    @Transactional
+    public boolean updateCurrantInfPrice(CurrencyPriceDTO currencyInfo) {
 
         BigDecimal currentPrice = new BigDecimal(currencyInfo.getUSDBRL().getBid());
         boolean updatePrice = false;
@@ -72,5 +72,6 @@ public class QuotationService {
         quotation.setCurrencyPrice(new BigDecimal(currencyPriceInfo.getUSDBRL().getBid()));
         quotation.setPctChange(currencyPriceInfo.getUSDBRL().getPctChange());
         quotation.setPair("USD-BRL");
+        repository.persist(quotation);
     }
 }
